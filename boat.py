@@ -1,93 +1,148 @@
-
-import pygame
+import glfw
 from OpenGL.GL import *
-import numpy as np
-from OpenGL.GLU import *
-from pygame.locals import *
+from OpenGL.GL.shaders import compileProgram, compileShader
+import pyrr
+from TextureLoader import load_texture
+from OBJLoader import ObjFileLoader
 
-from math import *
 
-def init():
-    pygame.init()
-    display = (600, 600)
-    pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
-    glClearColor(0.0, 0.0, 0.0, 1.0)
-    gluOrtho2D(-10.0, 10.0, -10.0, 10.0)
+vertex_src = """
+# version 330
 
-def draw():
-    glClear(GL_COLOR_BUFFER_BIT)
-    glPointSize(1.4)
-    # glBegin(GL_POLYGON)
-    # # x =0
-    # # y = 0
-    # glColor3f(0,0,0)
-    # for i in range(360):
-    #     angle_theta = i * 3.142 / 180
-    #     glVertex2f(np.multiply(50,np.cos(angle_theta)),
-    #              np.multiply(50,np.sin(angle_theta)))
-        
-    # glEnd()
-    
-    
-    glBegin(GL_POLYGON)
-    glColor3f(0,0,1)
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec2 a_texture;
+layout(location = 2) in vec3 a_normal;
 
-    glVertex2f(-100,0)
-    glVertex2f(100,0)
-    glVertex2f(-100,-100)
-    glVertex2f(100,-100)
-    
-    glEnd()
-    glBegin(GL_POLYGON)
-    glColor3f(0.5,0.5,1)
+uniform mat4 model;
+uniform mat4 projection;
+uniform mat4 view;
 
-    glVertex2f(-100,0)
-    glVertex2f(100,0)
-    glVertex2f(-100,100)
-    glVertex2f(100,100)
-    
-    glEnd()
-    glBegin(GL_POLYGON)
-    glColor3f(1.0,0,0)
+out vec2 v_texture;
 
-    glVertex2f(-4,2)
-    glVertex2f(-3,-1)
-    glVertex2f(3,-1)
-    glVertex2f(4,2)
-    
-    glEnd()
-    glBegin(GL_POLYGON)
-    glColor3f(1,1,0)
+void main()
+{
+    gl_Position = projection * view * model * vec4(a_position, 1.0);
+    v_texture = a_texture;
+}
+"""
 
-    glVertex2f(-2,2)
-    glVertex2f(0,2)
-    glVertex2f(0,4)
-    glVertex2f(-2,4)
-    
-    glEnd()
-    posx, posy = 7,8    
-    sides = 32    
-    radius = 1.5 
-    glBegin(GL_POLYGON)   
-    glColor3f(1,1,0) 
-    for i in range(100):    
-        cosine= radius * cos(i*2*pi/sides) + posx    
-        sine  = radius * sin(i*2*pi/sides) + posy    
-        glVertex2f(cosine,sine)
+fragment_src = """
+# version 330
 
-    glEnd()
-    glFlush()
+in vec2 v_texture;
 
-def main():
-    init()
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-        
-        draw()
-        pygame.display.flip()
-        pygame.time.wait(10)
+out vec4 out_color;
 
-main()
+uniform sampler2D s_texture;
+
+void main()
+{
+    out_color = texture(s_texture, v_texture);
+}
+"""
+
+
+# glfw callback functions
+def window_resize(window, width, height):
+    glViewport(0, 0, width, height)
+    projection = pyrr.matrix44.create_perspective_projection_matrix(45, width / height, 0.1, 100)
+    glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+
+
+# initializing glfw library
+if not glfw.init():
+    raise Exception("glfw can not be initialized!")
+
+# creating the window
+window = glfw.create_window(1280, 720, "My OpenGL window", None, None)
+
+# check if window was created
+if not window:
+    glfw.terminate()
+    raise Exception("glfw window can not be created!")
+
+# set window's position
+glfw.set_window_pos(window, 0, 0)
+
+
+# set the callback function for window resize
+glfw.set_window_size_callback(window, window_resize)
+
+# make the context current
+glfw.make_context_current(window)
+
+# load here the 3d meshes
+boat_indices, boat_buffer = ObjFileLoader.load_model("boat.obj")
+# monkey_indices, monkey_buffer = ObjLoader.load_model("meshes/monkey.obj")
+
+shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShader(fragment_src, GL_FRAGMENT_SHADER))
+
+# VAO and VBO
+VAO = glGenVertexArrays(2)
+VBO = glGenBuffers(2)
+EBO = glGenBuffers(1)
+print(len(boat_indices)*3*4,boat_indices,boat_buffer)
+# Chibi VAO
+glBindVertexArray(VAO[0])
+# Chibi Vertex Buffer Object
+glBindBuffer(GL_ARRAY_BUFFER, VBO[0])
+glBufferData(GL_ARRAY_BUFFER, boat_buffer.nbytes, boat_buffer, GL_STATIC_DRAW)
+
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
+glBufferData(GL_ELEMENT_ARRAY_BUFFER, boat_indices.nbytes, boat_indices, GL_STATIC_DRAW)
+
+# chibi vertices
+glEnableVertexAttribArray(0)
+glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, boat_buffer.itemsize * 8, ctypes.c_void_p(0))
+# chibi textures
+glEnableVertexAttribArray(1)
+glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, boat_buffer.itemsize * 8, ctypes.c_void_p(127152))
+# chibi normals
+glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, boat_buffer.itemsize * 8, ctypes.c_void_p(127152))
+glEnableVertexAttribArray(2)
+
+
+# textures = glGenTextures(2)
+# load_texture("metal.jpg", textures[0])
+
+glUseProgram(shader)
+glClearColor(0, 0.1, 0.1, 1)
+glEnable(GL_DEPTH_TEST)
+glEnable(GL_BLEND)
+glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+projection = pyrr.matrix44.create_perspective_projection_matrix(45, 1280 / 720, 0.1, 100)
+chibi_pos = pyrr.matrix44.create_from_translation(pyrr.Vector3([0, -5, -10]))
+monkey_pos = pyrr.matrix44.create_from_translation(pyrr.Vector3([-4, 0, 0]))
+
+# eye, target, up
+view = pyrr.matrix44.create_look_at(pyrr.Vector3([0, 0, 8]), pyrr.Vector3([0, 0, 0]), pyrr.Vector3([0, 1, 0]))
+
+model_loc = glGetUniformLocation(shader, "model")
+proj_loc = glGetUniformLocation(shader, "projection")
+view_loc = glGetUniformLocation(shader, "view")
+
+glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
+
+while not glfw.window_should_close(window):
+    glfw.poll_events()
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+    rot_y = pyrr.Matrix44.from_y_rotation(0.8 * glfw.get_time())
+    model = pyrr.matrix44.multiply(rot_y, chibi_pos)
+
+    glBindVertexArray(VAO[0])
+    glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
+    glDrawArrays(GL_TRIANGLES, 0, len(boat_indices))
+    glDrawElements(GL_TRIANGLES, len(boat_indices), GL_UNSIGNED_INT, None)
+
+    rot_y = pyrr.Matrix44.from_y_rotation(-0.8 * glfw.get_time())
+    model = pyrr.matrix44.multiply(rot_y, monkey_pos)
+
+  
+
+    glfw.swap_buffers(window)
+
+glfw.terminate()

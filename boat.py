@@ -34,8 +34,8 @@ glfw.set_window_size_callback(window, window_resize)
 glfw.make_context_current(window)
 
 
-boat_indices, boat_buffer = ObjFileLoader.model_loader("last1.obj")
-water_indices, water_buffer = ObjFileLoader.model_loader("water1.obj")
+boat_indices, boat_buffer = ObjFileLoader.model_loader("boat.obj")
+water_indices, water_buffer = ObjFileLoader.model_loader("water.obj")
 
 shader = compileProgram(compileShader(VertexShaderContent, GL_VERTEX_SHADER), compileShader(FragmentShaderContent, GL_FRAGMENT_SHADER))
 

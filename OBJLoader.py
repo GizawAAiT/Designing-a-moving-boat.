@@ -1,10 +1,8 @@
 import numpy as np
-
-
 class ObjFileLoader:
     buffer = []
 
-    def search_data(data_values, container, identifier, data_type): #identifier includes [v, vt, f...]
+    def search_data(data_values, container, identifier, data_type): 
         for d in data_values:
             if d == identifier:
                 continue
@@ -16,15 +14,15 @@ class ObjFileLoader:
 
     def create_sorted_vertex_buffer(indices_data, vertices, textures, normals):
         for i, ind in enumerate(indices_data):
-            if i % 3 == 0: # sort the vertex coordinates
+            if i % 3 == 0: 
                 start = ind * 3
                 end = start + 3
                 ObjFileLoader.buffer.extend(vertices[start:end])
-            elif i % 3 == 1: # sort the texture coordinates
+            elif i % 3 == 1: 
                 start = ind * 2
                 end = start + 2
                 ObjFileLoader.buffer.extend(textures[start:end])
-            elif i % 3 == 2: # sort the normal vectors
+            elif i % 3 == 2: 
                 start = ind * 3
                 end = start + 3
                 ObjFileLoader.buffer.extend(normals[start:end])
@@ -58,17 +56,13 @@ class ObjFileLoader:
             print(buffer[start:end])
 
 
-    def load_model(file, sorted=True):
-        
-        """define all the list container for vertices, textures, normals, indices .."""
-        
-        vertices = [] # all vertex coordinates
-        textures = [] #  all texture coordinates
-        normals = [] #all vertex normals.
+    def model_loader(file, sorted=True):
+        vertices = [] 
+        textures = [] 
+        normals = [] 
 
-        all_indices = [] # will contain all the vertex, texture and normal indices
-        indices = [] # will contain the indices for indexed drawing
-
+        all_indices = [] 
+        indices = [] 
 
         with open(file, 'r') as fl:
             line = fl.readline()
@@ -89,16 +83,13 @@ class ObjFileLoader:
                 line = fl.readline()
 
         if sorted:
-            # use with glDrawArrays
             ObjFileLoader.create_sorted_vertex_buffer(all_indices, vertices, textures, normals)
         else:
-            # use with glDrawElements
             ObjFileLoader.create_unsorted_vertex_buffer(all_indices, vertices, textures, normals)
 
-        # ObjLoader.show_buffer_data(ObjLoader.buffer)
-
-        local_copy = ObjFileLoader.buffer.copy() # create a local copy of the buffer list, otherwise it will overwrite the static field buffer
-        ObjFileLoader.buffer = [] # after copy, make sure to set it back to an empty list
+        local_copy = ObjFileLoader.buffer.copy()
+        ObjFileLoader.buffer = [] 
 
         return np.array(indices, dtype='uint32'), np.array(local_copy, dtype='float32')
+
 
